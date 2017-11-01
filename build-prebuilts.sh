@@ -38,19 +38,67 @@ if [ -n ${build_soong} ]; then
     "HostSecondaryArch":"x86"
 }
 EOF
-    BUILDDIR=${SOONG_OUT} ./bootstrap.bash
-    SOONG_BINARIES=( acp bpfmt ckati ckati_stamp_dump ijar makeparallel ninja ziptime )
-    ${SOONG_OUT}/soong ${SOONG_BINARIES[@]/#/${SOONG_HOST_OUT}/bin/} ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test
+    SOONG_BINARIES=(
+        acp
+        bpfmt
+        ckati
+        ckati_stamp_dump
+        header-abi-linker
+        header-abi-dumper
+        header-abi-diff
+        makeparallel
+        merge-abi-diff
+        ninja
+        soong_zip
+        zip2zip
+        ziptime
+    )
+    SOONG_ASAN_BINARIES=(
+        acp
+        ckati
+        makeparallel
+        ninja
+        ziptime
+    )
+    SOONG_JAVA_LIBRARIES=(
+        desugar
+        dx
+        d8
+        turbine
+    )
+    SOONG_JAVA_WRAPPERS=(
+        dx
+        d8
+    )
+
+    binaries=$(for i in "${SOONG_BINARIES[@]}"; do echo ${SOONG_HOST_OUT}/bin/${i}; done)
+    asan_binaries=$(for i in "${SOONG_ASAN_BINARIES[@]}"; do echo ${SOONG_HOST_OUT}/bin/${i}; done)
+    jars=$(for i in "${SOONG_JAVA_LIBRARIES[@]}"; do echo ${SOONG_HOST_OUT}/framework/${i}.jar; done)
+    wrappers=$(for i in "${SOONG_JAVA_WRAPPERS[@]}"; do echo ${SOONG_HOST_OUT}/bin/${i}; done)
+
+    # Build everything
+    build/soong/soong_ui.bash --make-mode --skip-make \
+        ${binaries} \
+        ${wrappers} \
+        ${jars} \
+        ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test
+
+    # Run ninja tests
     ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test
+
+    # Copy arch-specific binaries
     mkdir -p ${SOONG_OUT}/dist/bin
-    cp ${SOONG_BINARIES[@]/#/${SOONG_HOST_OUT}/bin/} ${SOONG_OUT}/dist/bin/
+    cp ${binaries} ${SOONG_OUT}/dist/bin/
     cp -R ${SOONG_HOST_OUT}/lib* ${SOONG_OUT}/dist/
+
+    # Copy jars and wrappers
+    mkdir -p ${SOONG_OUT}/dist-common/bin ${SOONG_OUT}/dist-common/framework
+    cp ${wrappers} ${SOONG_OUT}/dist-common/bin
+    cp ${jars} ${SOONG_OUT}/dist-common/framework
 
     if [[ $OS == "linux" ]]; then
         # Build ASAN versions
         export ASAN_OPTIONS=detect_leaks=0
-        # Remove Go binaries that won't change with ASAN
-        SOONG_BINARIES=( ${SOONG_BINARIES[@]/bpfmt} )
         cat > ${SOONG_OUT}/soong.variables << EOF
 {
     "Allow_missing_dependencies": true,
@@ -59,16 +107,34 @@ EOF
     "SanitizeHost": ["address"]
 }
 EOF
-        ${SOONG_OUT}/soong ${SOONG_BINARIES[@]/#/${SOONG_HOST_OUT}/bin/} ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test
+
+        # Clean up non-ASAN installed versions
+        rm -rf ${SOONG_HOST_OUT}
+
+        # Build everything with ASAN
+        build/soong/soong_ui.bash --make-mode --skip-make \
+            ${asan_binaries} \
+            ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test
+
+        # Run ninja tests
         ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test
+
+        # Copy arch-specific binaries
         mkdir -p ${SOONG_OUT}/dist/asan/bin
-        cp ${SOONG_BINARIES[@]/#/${SOONG_HOST_OUT}/bin/} ${SOONG_OUT}/dist/asan/bin/
+        cp ${asan_binaries} ${SOONG_OUT}/dist/asan/bin/
         cp -R ${SOONG_HOST_OUT}/lib* ${SOONG_OUT}/dist/asan/
     fi
 
+    # Package arch-specific prebuilts
     (
         cd ${SOONG_OUT}/dist
         zip -qryX build-prebuilts.zip *
+    )
+
+    # Package common prebuilts
+    (
+        cd ${SOONG_OUT}/dist-common
+        zip -qryX build-common-prebuilts.zip *
     )
 fi
 
@@ -84,6 +150,7 @@ if [ -n ${build_go} ]; then
         export GOROOT_FINAL=./prebuilts/go/${OS}-x86
         export GO_TEST_TIMEOUT_SCALE=100
         ./make.bash
+        rm -rf ../pkg/bootstrap
         GOROOT=$(pwd)/.. ../bin/go install -race std
     )
     (
@@ -97,6 +164,7 @@ if [ -n "${DIST_DIR}" ]; then
 
     if [ -n ${build_soong} ]; then
         cp ${SOONG_OUT}/dist/build-prebuilts.zip ${DIST_DIR}/
+        cp ${SOONG_OUT}/dist-common/build-common-prebuilts.zip ${DIST_DIR}/
         cp ${SOONG_OUT}/.bootstrap/docs/soong_build.html ${DIST_DIR}/
     fi
     if [ -n ${build_go} ]; then
