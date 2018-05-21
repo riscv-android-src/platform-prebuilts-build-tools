@@ -41,16 +41,14 @@ EOF
     SOONG_BINARIES=(
         acp
         aidl
+        bison
         bpfmt
         ckati
         ckati_stamp_dump
-        header-abi-linker
-        header-abi-dumper
-        header-abi-diff
         makeparallel
-        merge-abi-diff
         ninja
         soong_zip
+        xz
         zip2zip
         zipalign
         ziptime
@@ -83,10 +81,15 @@ EOF
         ${binaries} \
         ${wrappers} \
         ${jars} \
-        ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test
+        ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test \
+        ${SOONG_HOST_OUT}/nativetest64/ckati_test/find_test \
+        soong_docs
 
     # Run ninja tests
     ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test
+
+    # Run ckati tests
+    ${SOONG_HOST_OUT}/nativetest64/ckati_test/find_test
 
     # Copy arch-specific binaries
     mkdir -p ${SOONG_OUT}/dist/bin
@@ -97,6 +100,8 @@ EOF
     mkdir -p ${SOONG_OUT}/dist-common/bin ${SOONG_OUT}/dist-common/framework
     cp ${wrappers} ${SOONG_OUT}/dist-common/bin
     cp ${jars} ${SOONG_OUT}/dist-common/framework
+
+    cp -r external/bison/data ${SOONG_OUT}/dist-common/bison
 
     if [[ $OS == "linux" ]]; then
         # Build ASAN versions
@@ -116,10 +121,14 @@ EOF
         # Build everything with ASAN
         build/soong/soong_ui.bash --make-mode --skip-make \
             ${asan_binaries} \
-            ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test
+            ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test \
+            ${SOONG_HOST_OUT}/nativetest64/ckati_test/find_test
 
         # Run ninja tests
         ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test
+
+        # Run ckati tests
+        ${SOONG_HOST_OUT}/nativetest64/ckati_test/find_test
 
         # Copy arch-specific binaries
         mkdir -p ${SOONG_OUT}/dist/asan/bin
@@ -151,6 +160,7 @@ if [ -n ${build_go} ]; then
         export GOROOT_BOOTSTRAP=${TOP}/prebuilts/go/${OS}-x86
         export GOROOT_FINAL=./prebuilts/go/${OS}-x86
         export GO_TEST_TIMEOUT_SCALE=100
+        export GOCACHE=off
         ./make.bash
         rm -rf ../pkg/bootstrap
         GOROOT=$(pwd)/.. ../bin/go install -race std
@@ -167,7 +177,7 @@ if [ -n "${DIST_DIR}" ]; then
     if [ -n ${build_soong} ]; then
         cp ${SOONG_OUT}/dist/build-prebuilts.zip ${DIST_DIR}/
         cp ${SOONG_OUT}/dist-common/build-common-prebuilts.zip ${DIST_DIR}/
-        cp ${SOONG_OUT}/.bootstrap/docs/soong_build.html ${DIST_DIR}/
+        cp ${SOONG_OUT}/docs/soong_build.html ${DIST_DIR}/
     fi
     if [ -n ${build_go} ]; then
         cp ${GO_OUT}/go.zip ${DIST_DIR}/
