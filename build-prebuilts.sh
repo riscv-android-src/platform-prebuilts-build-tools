@@ -34,18 +34,19 @@ if [ -n ${build_soong} ]; then
     cat > ${SOONG_OUT}/soong.variables << EOF
 {
     "Allow_missing_dependencies": true,
-    "HostArch":"x86_64",
-    "HostSecondaryArch":"x86"
+    "HostArch":"x86_64"
 }
 EOF
     SOONG_BINARIES=(
         acp
         aidl
+        one-true-awk
         bison
         bpfmt
         ckati
         ckati_stamp_dump
         flex
+        make
         makeparallel
         ninja
         soong_zip
@@ -71,6 +72,15 @@ EOF
     SOONG_JAVA_WRAPPERS=(
         dx
     )
+    if [[ $OS == "linux" ]]; then
+        SOONG_BINARIES+=(
+            nsjail
+            toybox
+        )
+        SOONG_ASAN_BINARIES+=(
+            toybox
+        )
+    fi
 
     binaries=$(for i in "${SOONG_BINARIES[@]}"; do echo ${SOONG_HOST_OUT}/bin/${i}; done)
     asan_binaries=$(for i in "${SOONG_ASAN_BINARIES[@]}"; do echo ${SOONG_HOST_OUT}/bin/${i}; done)
@@ -111,7 +121,6 @@ EOF
 {
     "Allow_missing_dependencies": true,
     "HostArch":"x86_64",
-    "HostSecondaryArch":"x86",
     "SanitizeHost": ["address"]
 }
 EOF

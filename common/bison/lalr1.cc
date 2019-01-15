@@ -376,6 +376,7 @@ do {					\
               if (*++yyp != '\\')
                 goto do_not_strip_quotes;
               /* Fall through.  */
+              [[fallthrough]];
             default:
               yyr += *yyp;
               break;
