@@ -40,15 +40,17 @@ EOF
     SOONG_BINARIES=(
         acp
         aidl
-        one-true-awk
         bison
         bpfmt
+        bzip2
         ckati
         ckati_stamp_dump
         flex
         make
         makeparallel
         ninja
+        one-true-awk
+        py2-cmd
         soong_zip
         xz
         zip2zip
@@ -187,7 +189,7 @@ if [ -n "${DIST_DIR}" ]; then
     if [ -n ${build_soong} ]; then
         cp ${SOONG_OUT}/dist/build-prebuilts.zip ${DIST_DIR}/
         cp ${SOONG_OUT}/dist-common/build-common-prebuilts.zip ${DIST_DIR}/
-        cp ${SOONG_OUT}/docs/soong_build.html ${DIST_DIR}/
+        cp ${SOONG_OUT}/docs/*.html ${DIST_DIR}/
     fi
     if [ -n ${build_go} ]; then
         cp ${GO_OUT}/go.zip ${DIST_DIR}/
