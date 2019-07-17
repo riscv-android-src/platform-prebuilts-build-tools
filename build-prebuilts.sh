@@ -46,6 +46,7 @@ EOF
         ckati
         ckati_stamp_dump
         flex
+        m4
         make
         makeparallel
         ninja
@@ -70,6 +71,7 @@ EOF
         desugar
         dx
         turbine
+        javac_extractor
     )
     SOONG_JAVA_WRAPPERS=(
         dx
