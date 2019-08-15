@@ -26,7 +26,6 @@ if [ -d ${TOP}/toolchain/go ]; then
 fi
 
 if [ -n ${build_soong} ]; then
-    # ckati and makeparallel (Soong)
     SOONG_OUT=${OUT_DIR}/soong
     SOONG_HOST_OUT=${OUT_DIR}/soong/host/${OS}-x86
     rm -rf ${SOONG_OUT}
@@ -46,8 +45,9 @@ EOF
         ckati
         ckati_stamp_dump
         flex
+        hidl-lint
+        m4
         make
-        makeparallel
         ninja
         one-true-awk
         py2-cmd
@@ -61,7 +61,6 @@ EOF
         acp
         aidl
         ckati
-        makeparallel
         ninja
         zipalign
         ziptime
@@ -70,6 +69,7 @@ EOF
         desugar
         dx
         turbine
+        javac_extractor
     )
     SOONG_JAVA_WRAPPERS=(
         dx
