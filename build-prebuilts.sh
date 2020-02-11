@@ -1,10 +1,6 @@
 #!/bin/bash -ex
 
-if [ -z "${OUT_DIR}" ]; then
-    echo Must set OUT_DIR
-    exit 1
-fi
-
+: "${OUT_DIR:?Must set OUT_DIR}"
 TOP=$(pwd)
 
 UNAME="$(uname)"
@@ -21,14 +17,14 @@ Darwin)
 esac
 
 build_soong=1
-if [ -d ${TOP}/toolchain/go ]; then
-    build_go=1
-fi
+[[ ! -d ${TOP}/toolchain/go ]] || build_go=1
+clean=t
+[[ "${1:-}" != '--resume' ]] || clean=''
 
 if [ -n ${build_soong} ]; then
     SOONG_OUT=${OUT_DIR}/soong
     SOONG_HOST_OUT=${OUT_DIR}/soong/host/${OS}-x86
-    rm -rf ${SOONG_OUT}
+    [[ -z "${clean}" ]] || rm -rf ${SOONG_OUT}
     mkdir -p ${SOONG_OUT}
     cat > ${SOONG_OUT}/soong.variables << EOF
 {
@@ -45,33 +41,39 @@ EOF
         ckati
         ckati_stamp_dump
         flex
+        gavinhoward-bc
+        go_extractor
         hidl-lint
         m4
         make
         ninja
         one-true-awk
         py2-cmd
+        py3-cmd
         soong_zip
         toybox
         xz
         zip2zip
         zipalign
         ziptime
+        ziptool
     )
     SOONG_ASAN_BINARIES=(
         acp
         aidl
         ckati
+        gavinhoward-bc
         ninja
         toybox
         zipalign
         ziptime
+        ziptool
     )
     SOONG_JAVA_LIBRARIES=(
-        desugar
-        dx
-        turbine
-        javac_extractor
+        desugar.jar
+        dx.jar
+        turbine.jar
+        javac_extractor.jar
     )
     SOONG_JAVA_WRAPPERS=(
         dx
@@ -82,10 +84,10 @@ EOF
         )
     fi
 
-    binaries=$(for i in "${SOONG_BINARIES[@]}"; do echo ${SOONG_HOST_OUT}/bin/${i}; done)
-    asan_binaries=$(for i in "${SOONG_ASAN_BINARIES[@]}"; do echo ${SOONG_HOST_OUT}/bin/${i}; done)
-    jars=$(for i in "${SOONG_JAVA_LIBRARIES[@]}"; do echo ${SOONG_HOST_OUT}/framework/${i}.jar; done)
-    wrappers=$(for i in "${SOONG_JAVA_WRAPPERS[@]}"; do echo ${SOONG_HOST_OUT}/bin/${i}; done)
+    binaries="${SOONG_BINARIES[@]/#/${SOONG_HOST_OUT}/bin/}"
+    asan_binaries="${SOONG_ASAN_BINARIES[@]/#/${SOONG_HOST_OUT}/bin/}"
+    jars="${SOONG_JAVA_LIBRARIES[@]/#/${SOONG_HOST_OUT}/framework/}"
+    wrappers="${SOONG_JAVA_WRAPPERS[@]/#/${SOONG_HOST_OUT}/bin/}"
 
     # Build everything
     build/soong/soong_ui.bash --make-mode --skip-make \
@@ -108,11 +110,14 @@ EOF
     cp -R ${SOONG_HOST_OUT}/lib* ${SOONG_OUT}/dist/
 
     # Copy jars and wrappers
-    mkdir -p ${SOONG_OUT}/dist-common/bin ${SOONG_OUT}/dist-common/framework
+    mkdir -p ${SOONG_OUT}/dist-common/{bin,flex,framework}
     cp ${wrappers} ${SOONG_OUT}/dist-common/bin
     cp ${jars} ${SOONG_OUT}/dist-common/framework
 
     cp -r external/bison/data ${SOONG_OUT}/dist-common/bison
+    cp external/bison/NOTICE ${SOONG_OUT}/dist-common/bison/
+    cp -r external/flex/src/FlexLexer.h ${SOONG_OUT}/dist-common/flex/
+    cp external/flex/NOTICE ${SOONG_OUT}/dist-common/flex/
 
     if [[ $OS == "linux" ]]; then
         # Build ASAN versions
@@ -124,6 +129,8 @@ EOF
     "SanitizeHost": ["address"]
 }
 EOF
+
+        export ASAN_SYMBOLIZER_PATH=${PWD}/prebuilts/clang/host/linux-x86/llvm-binutils-stable/llvm-symbolizer
 
         # Clean up non-ASAN installed versions
         rm -rf ${SOONG_HOST_OUT}
