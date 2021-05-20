@@ -109,6 +109,7 @@ EOF
     )
     if [[ $OS == "linux" ]]; then
         SOONG_BINARIES+=(
+            create_minidebuginfo
             nsjail
         )
     fi
@@ -220,7 +221,7 @@ if [ -n ${build_go} ]; then
     )
     (
         cd ${GO_OUT}
-        zip -qryX go.zip *
+        zip -qryX go.zip * --exclude update_prebuilts.sh
     )
 fi
 
