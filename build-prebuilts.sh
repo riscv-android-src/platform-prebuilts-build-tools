@@ -51,6 +51,9 @@ if [ -n ${build_soong} ]; then
     "VendorVars": {
         "cpython3": {
             "force_build_host": "true"
+        },
+        "art_module": {
+            "source_build": "true"
         }
     }
 }
@@ -109,6 +112,7 @@ EOF
     )
     if [[ $OS == "linux" ]]; then
         SOONG_BINARIES+=(
+            create_minidebuginfo
             nsjail
         )
     fi
@@ -122,7 +126,7 @@ EOF
     py3_stdlib_zip="${SOONG_OUT}/.intermediates/external/python/cpython3/Lib/py3-stdlib-zip/gen/py3-stdlib.zip"
 
     # Build everything
-    build/soong/soong_ui.bash --make-mode --skip-make \
+    build/soong/soong_ui.bash --make-mode --soong-only --skip-config \
         ${binaries} \
         ${wrappers} \
         ${jars} \
@@ -162,7 +166,12 @@ EOF
 {
     "Allow_missing_dependencies": true,
     "HostArch":"x86_64",
-    "SanitizeHost": ["address"]
+    "SanitizeHost": ["address"],
+    "VendorVars": {
+        "art_module": {
+            "source_build": "true"
+        }
+    }
 }
 EOF
 
@@ -172,7 +181,7 @@ EOF
         rm -rf ${SOONG_HOST_OUT}
 
         # Build everything with ASAN
-        build/soong/soong_ui.bash --make-mode --skip-make \
+        build/soong/soong_ui.bash --make-mode --soong-only --skip-config \
             ${asan_binaries} \
             ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test \
             ${SOONG_HOST_OUT}/nativetest64/ckati_test/find_test
@@ -220,7 +229,7 @@ if [ -n ${build_go} ]; then
     )
     (
         cd ${GO_OUT}
-        zip -qryX go.zip *
+        zip -qryX go.zip * --exclude update_prebuilts.sh
     )
 fi
 
