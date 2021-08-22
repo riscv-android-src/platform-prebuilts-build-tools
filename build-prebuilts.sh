@@ -32,8 +32,20 @@ esac
 
 build_soong=1
 [[ ! -d ${TOP}/toolchain/go ]] || build_go=1
-clean=t
-[[ "${1:-}" != '--resume' ]] || clean=''
+
+use_musl=false
+clean=true
+while getopts ":-:" opt; do
+    case "$opt" in
+        -)
+            case "${OPTARG}" in
+                resume) clean= ;;
+                musl) use_musl=true ;;
+                *) echo "Unknown option --${OPTARG}"; exit 1 ;;
+            esac;;
+        *) echo "'${opt}' '${OPTARG}'"
+    esac
+done
 
 # Use toybox and other prebuilts even outside of the build (test running, go, etc)
 export PATH=${TOP}/prebuilts/build-tools/path/${OS}-x86:$PATH
@@ -48,9 +60,13 @@ if [ -n ${build_soong} ]; then
 {
     "Allow_missing_dependencies": true,
     "HostArch":"x86_64",
+    "HostMusl": $use_musl,
     "VendorVars": {
         "cpython3": {
             "force_build_host": "true"
+        },
+        "art_module": {
+            "source_build": "true"
         }
     }
 }
@@ -123,7 +139,7 @@ EOF
     py3_stdlib_zip="${SOONG_OUT}/.intermediates/external/python/cpython3/Lib/py3-stdlib-zip/gen/py3-stdlib.zip"
 
     # Build everything
-    build/soong/soong_ui.bash --make-mode --skip-make \
+    build/soong/soong_ui.bash --make-mode --soong-only --skip-config \
         ${binaries} \
         ${wrappers} \
         ${jars} \
@@ -163,7 +179,12 @@ EOF
 {
     "Allow_missing_dependencies": true,
     "HostArch":"x86_64",
-    "SanitizeHost": ["address"]
+    "SanitizeHost": ["address"],
+    "VendorVars": {
+        "art_module": {
+            "source_build": "true"
+        }
+    }
 }
 EOF
 
@@ -173,7 +194,7 @@ EOF
         rm -rf ${SOONG_HOST_OUT}
 
         # Build everything with ASAN
-        build/soong/soong_ui.bash --make-mode --skip-make \
+        build/soong/soong_ui.bash --make-mode --soong-only --skip-config \
             ${asan_binaries} \
             ${SOONG_HOST_OUT}/nativetest64/ninja_test/ninja_test \
             ${SOONG_HOST_OUT}/nativetest64/ckati_test/find_test
@@ -221,7 +242,7 @@ if [ -n ${build_go} ]; then
     )
     (
         cd ${GO_OUT}
-        zip -qryX go.zip *
+        zip -qryX go.zip * --exclude update_prebuilts.sh
     )
 fi
 
